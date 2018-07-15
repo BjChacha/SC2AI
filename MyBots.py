@@ -314,7 +314,7 @@ class ChaBotDL(ChaBot1):
                 # print(y)
                 self.train_data.append([y, self.flipped])
 
-
+# Sentdex's Tutorial Bot
 class SentdeBot(BotAI):
     def __init__(self):
         self.ITERATIONS_PER_MINUTE = 165
@@ -322,12 +322,12 @@ class SentdeBot(BotAI):
         self.do_something_after = 0
         self.train_data = []
 
-    def on_end(self, game_result):
-        print('--- on_end called ---')
-        print(game_result)
+    # def on_end(self, game_result):
+    #     print('--- on_end called ---')
+    #     print(game_result)
 
-        if game_result == Result.Victory:
-            np.save("train_data_{}.npy".format(str(int(time.time()))), np.array(self.train_data))
+    #     if game_result == Result.Victory:
+    #         np.save("train_data_{}.npy".format(str(int(time.time()))), np.array(self.train_data))
 
     async def on_step(self, iteration):
         self.iteration = iteration
@@ -456,9 +456,9 @@ class SentdeBot(BotAI):
         self.flipped = cv2.flip(game_data, 0)
 
         # if not HEADLESS:
-        #     resized = cv2.resize(self.flipped, dsize=None, fx=2, fy=2)
-        #     cv2.imshow('Intel', resized)
-        #     cv2.waitKey(1)
+        resized = cv2.resize(self.flipped, dsize=None, fx=2, fy=2)
+        cv2.imshow('Intel', resized)
+        cv2.waitKey(1)
 
     async def build_workers(self):
         if (len(self.units(NEXUS)) * 16) > len(self.units(PROBE)) and len(self.units(PROBE)) < self.MAX_WORKERS:

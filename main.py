@@ -6,8 +6,8 @@ from MyBots import ChaBot1, ChaBot2, SentdeBot, ChaBotDL
 def main():
     run_game(maps.get("AbyssalReefLE"), [
         Bot(Race.Protoss, ChaBotDL()),
-        Computer(Race.Random, Difficulty.Easy)
-        # Bot(Race.Protoss, ChaBot2())
+        # Computer(Race.Random, Difficulty.Easy)
+        Bot(Race.Protoss, ChaBot2())
     ], realtime=False)
 
     return 0
