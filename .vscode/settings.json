@@ -1,0 +1,8 @@
+{
+    "python.unitTest.pyTestArgs": [
+        "python-sc2"
+    ],
+    "python.unitTest.unittestEnabled": false,
+    "python.unitTest.nosetestsEnabled": false,
+    "python.unitTest.pyTestEnabled": true
+}
