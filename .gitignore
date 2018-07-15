@@ -1,5 +1,6 @@
 .idea
 .vs
 .vscode
+.pytest_cache
 __pycache__
 train_data
