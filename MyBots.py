@@ -221,18 +221,16 @@ class ChaBotDL(ChaBot1):
         if iteration // self.ITERATIONS_PER_MINUTE > 10 and self.MAX_NEXUS < 10:
             self.MAX_NEXUS = 10
             self.MAX_ASSIMILATORS = 16
-        elif iteration // self.ITERATIONS_PER_MINUTE > 20 and self.MAX_NEXUS < 16:
+        elif iteration // self.ITERATIONS_PER_MINUTE > 18 and self.MAX_NEXUS < 16:
             self.MAX_NEXUS = 16
             self.MAX_ASSIMILATORS = 32
 
     async def visualize(self):
         game_data = np.zeros((self.game_info.map_size[1], self.game_info.map_size[0], 3), np.uint8)
-
-        draw_dict = {
+        unit_dict = {
             NEXUS: [15, (0, 255, 0)],
             PYLON: [3, (20, 235, 0)],
             PROBE: [1, (55, 200, 0)],
-
             ASSIMILATOR: [2, (55, 200, 0)],
             GATEWAY: [3, (200, 100, 0)],
             CYBERNETICSCORE: [3, (150, 150, 0)],
@@ -241,13 +239,12 @@ class ChaBotDL(ChaBot1):
             STALKER: [3, (135, 135, 50)],
             VOIDRAY: [3, (255, 100, 0)],
             }
-        for unit_type in draw_dict:
+        for unit_type in unit_dict:
             for unit in self.units(unit_type).ready:
                 pos = unit.position
-                cv2.circle(game_data, (int(pos[0]), int(pos[1])), draw_dict[unit_type][0], draw_dict[unit_type][1], -1)
+                cv2.circle(game_data, (int(pos[0]), int(pos[1])), unit_dict[unit_type][0], unit_dict[unit_type][1], -1)
 
         main_base_name = ['nexus', 'supplydepot', 'hatchery']
-        worker_names = ["probe", "scv", "drone"]
         for enemy_building in self.known_enemy_structures:
             pos = enemy_building.position
             if enemy_building.name.lower() not in main_base_name:
@@ -255,13 +252,14 @@ class ChaBotDL(ChaBot1):
             else:
                 cv2.circle(game_data, (int(pos[0]), int(pos[1])), 15, (0, 0, 255), -1)
 
+        worker_names = ["probe", "scv", "drone"]
         for enemy_unit in self.known_enemy_units.not_structure:
             pos = enemy_unit.position
             if enemy_unit.name.lower() in worker_names:
                 cv2.circle(game_data, (int(pos[0]), int(pos[1])), 1, (55, 0, 155), -1)
             else:
                 cv2.circle(game_data, (int(pos[0]), int(pos[1])), 3, (50, 0, 215), -1)
-
+        # draw observer at the last to on the toppest layer
         for obs in self.units(OBSERVER).ready:
             pos = obs.position
             cv2.circle(game_data, (int(pos[0]), int(pos[1])), 1, (255, 255, 255), -1)
@@ -283,19 +281,22 @@ class ChaBotDL(ChaBot1):
                             / supply_used
         if military_weight > 1:
             military_weight = 1
-
-        cv2.line(game_data, (0, 19), (int(line_max * military_weight), 19), (255, 250, 200), 3)
-        cv2.line(game_data, (0, 15), (int(line_max * plausible_supply), 15), (220, 200, 200), 3)
-        cv2.line(game_data, (0, 11), (int(line_max * population_ratio), 11), (150, 150, 150), 3)
-        cv2.line(game_data, (0, 7), (int(line_max * vespene_ratio), 7), (210, 200, 0), 3)
-        cv2.line(game_data, (0, 3), (int(line_max * mineral_ratio), 3), (0, 255, 25), 3)
-
+        for line in [
+            [military_weight, ((0, 19), (255, 250, 200))], 
+            [plausible_supply, ((0, 15), (220, 200, 200))],
+            [population_ratio, ((0, 11), (150, 150, 150))],
+            [vespene_ratio, ((0, 7), (210, 200, 0))],
+            [mineral_ratio, ((0, 3), (0, 255, 25))],
+            ]:
+            cv2.line(game_data, line[1][0], (int(line_max * line[0]), 19), line[1][1], 3)
+        # finally show the visualization
         self.flipped = cv2.flip(game_data, 0)
         resized = cv2.resize(self.flipped, dsize=None, fx=2, fy=2)
         cv2.imshow(str(self.player_id), resized)
         cv2.waitKey(1)
 
-
+    # to do: to change method name from attack to others
+    # this will be a method with more options or operations for bot
     async def attack(self, **karg):
         if self.units(VOIDRAY).amount + self.units(STALKER).amount > 0:
             choice = random.randrange(0, 6)
@@ -338,7 +339,6 @@ class ChaBotDL(ChaBot1):
                         await self.do(scout.move(go_to))
                     else:
                         return
-
                 # print("Player {0} {1}".format(self.player_id, action))
                 reaction = random.randrange(self.BASIC_REACTION[0], self.BASIC_REACTION[1]+1)
                 self.do_something_ater = self.iteration + reaction
@@ -347,7 +347,6 @@ class ChaBotDL(ChaBot1):
                         await self.do(vr.attack(target))
                     for sk in self.units(STALKER).idle:
                         await self.do(sk.attack(target))
-
                 y = np.zeros(6)
                 y[choice] = 1
                 # print(y)
