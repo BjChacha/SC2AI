@@ -3,6 +3,7 @@ import time
 import os
 import cv2
 import numpy as np
+from util import num_float_in
 from sc2 import BotAI, Result, position
 from sc2.constants import (ASSIMILATOR, CYBERNETICSCORE, GATEWAY, IMMORTAL,
                            NEXUS, OBSERVER, PROBE, PYLON, ROBOTICSFACILITY,
@@ -21,6 +22,7 @@ class MyBot(BotAI):
         self.MAX_ASSIMILATORS = 4
         self.MAX_FIRST_FACTORY = 2
         self.MAX_SECOND_FACTORY = 3
+        self.MAX_OBSERVER = 2
         self.EXPAND_TIMEGAP = 0
         self.FIRST_ATTACK_UNIT = None
         self.SECOND_ATTACK_UNIT = None
@@ -31,37 +33,46 @@ class MyBot(BotAI):
         self.iteration = iteration
         # print("{0:.2f}".format(self.iteration / self.ITERATIONS_PER_MINUTE))
         await self.distribute_workers()
-        await self.scout()
         await self.build_workers(max_amount=self.MAX_WORKERS)
         await self.build_pylons(iteration / self.ITERATIONS_PER_MINUTE // self.SUPPLY_OFFSET_DIV_FACTOR + self.SUPPLY_OFFSET_ADD_FACTOR)
         await self.build_assimilators(max_amount=self.MAX_ASSIMILATORS)
         await self.expand(max_amount=self.MAX_NEXUS, expand_timegap=self.EXPAND_TIMEGAP)
         await self.offensive_force_building(max_amount_of_first_factory=self.MAX_FIRST_FACTORY, max_amount_of_second_factory=self.MAX_SECOND_FACTORY)
         await self.train_offensive_force()
+        await self.train_observer(max_amount=self.MAX_OBSERVER)
         await self.attack(defend_amount=5, attack_amount=28)
 
-    async def scout(self):
-        if len(self.units(OBSERVER)) > 0:
-            scout = self.units(OBSERVER)[0]
-            if scout.is_idle:
-                enemy_location = self.enemy_start_locations[0]
-                move_to = self.random_location_variance(enemy_location)
-                print("Scout!")
-                await self.do(scout.move(move_to))
-        else:
+    # async def scout(self, pos):
+    #     if self.units(OBSERVER).amount > 0:
+    #         scout = self.units(OBSERVER)[0]
+    #         if scout.is_idle:
+    #             enemy_location = self.enemy_start_locations[0]
+    #             move_to = self.random_location_variance(enemy_location)
+    #             # print("Scout!")
+    #             await self.do(scout.move(move_to))
+    #     else:
+    #         for rf in self.units(ROBOTICSFACILITY).ready.noqueue:
+    #             if self.can_afford(OBSERVER) and self.supply_left > 1:
+    #                 await self.do(rf.train(OBSERVER))
+
+    async def train_observer(self, max_amount):
+        if self.units(OBSERVER).amount < max_amount:
             for rf in self.units(ROBOTICSFACILITY).ready.noqueue:
                 if self.can_afford(OBSERVER) and self.supply_left > 1:
                     await self.do(rf.train(OBSERVER))
 
     def random_location_variance(self,enemy_start_location):
-        x = enemy_start_location[0]
-        y = enemy_start_location[1]
-        x *= ((random.randrange(-20, 20))/100) + 1
-        y *= ((random.randrange(-20, 20))/100) + 1
-        x = 0 if x < 0 else x
-        x = self.game_info.map_size[0] if x > self.game_info.map_size[0] else x
-        y = 0 if y < 0 else y
-        y = self.game_info.map_size[1] if y > self.game_info.map_size[1] else y
+        # x = enemy_start_location[0]
+        # y = enemy_start_location[1]
+        # x *= ((random.randrange(-20, 20))/100) + 1
+        # y *= ((random.randrange(-20, 20))/100) + 1
+        # x = 0 if x < 0 else x
+        # x = self.game_info.map_size[0] if x > self.game_info.map_size[0] else x
+        # y = 0 if y < 0 else y
+        # y = self.game_info.map_size[1] if y > self.game_info.map_size[1] else y
+
+        x = num_float_in(enemy_start_location[0], 0.2, 0, self.game_info.map_size[0])
+        y = num_float_in(enemy_start_location[1], 0.2, 0, self.game_info.map_size[1])
 
         go_to = position.Point2(position.Pointlike((x, y)))
         return go_to
@@ -130,15 +141,15 @@ class MyBot(BotAI):
 
     async def attack(self, defend_amount, attack_amount):
         if self.units(self.FIRST_ATTACK_UNIT).amount + self.units(self.SECOND_ATTACK_UNIT).amount >= attack_amount:
-            print("Attack!")
+            # print("Attack!")
             for s in self.units(self.FIRST_ATTACK_UNIT).idle:
                 if self.known_enemy_structures:
-                    await self.do(s.attack(random.choice(self.known_enemy_structures)))
+                    await self.do(s.attack(self.known_enemy_structures.random))
                 else:
                     await self.do(s.attack(self.enemy_start_locations[0]))
             for v in self.units(self.SECOND_ATTACK_UNIT).idle:
                 if self.known_enemy_structures:
-                    await self.do(v.attack(random.choice(self.known_enemy_structures)))
+                    await self.do(v.attack(self.known_enemy_structures.random))
                 else:
                     await self.do(v.attack(self.enemy_start_locations[0]))
         elif self.units(self.FIRST_ATTACK_UNIT).amount + self .units(self.SECOND_ATTACK_UNIT).amount >= defend_amount:
@@ -146,7 +157,7 @@ class MyBot(BotAI):
                 for enemy in self.known_enemy_units.not_structure: 
                     # print(enemy.position.to2.distance_to(self.start_location.to2))
                     if enemy.position.to2.distance_to(self.start_location.to2) < 15 * self.units(NEXUS).amount + 5:
-                        print("Defend!")
+                        # print("Defend!")
                         for s in self.units(self.FIRST_ATTACK_UNIT).idle:
                             await self.do(s.attack(enemy))
                         for v in self.units(self.SECOND_ATTACK_UNIT).idle:
@@ -192,14 +203,13 @@ class ChaBotDL(ChaBot1):
         self.MAX_WORKERS = 50
         self.do_something_ater = 0
         self.train_data = []
-        self.MAX_ASSIMILATORS = 6
         self.MAX_NEXUS = 5
-        self.BASIC_REACTION = 5
+        self.MAX_ASSIMILATORS = 6
+        self.BASIC_REACTION = (5,20)
     
     def on_end(self, game_result):
-        print('--- on_end called ---')
-        print(game_result)
-
+        # print('--- on_end called ---')
+        # print(game_result)
         if game_result == Result.Victory:
             save_path = (os.getcwd() + '/train_data/')
             if not os.path.exists(save_path): os.makedirs(save_path)
@@ -208,6 +218,12 @@ class ChaBotDL(ChaBot1):
     async def on_step(self, iteration):
         await super().on_step(iteration)
         await self.visualize()
+        if iteration // self.ITERATIONS_PER_MINUTE > 10 and self.MAX_NEXUS < 10:
+            self.MAX_NEXUS = 10
+            self.MAX_ASSIMILATORS = 16
+        elif iteration // self.ITERATIONS_PER_MINUTE > 20 and self.MAX_NEXUS < 16:
+            self.MAX_NEXUS = 16
+            self.MAX_ASSIMILATORS = 32
 
     async def visualize(self):
         game_data = np.zeros((self.game_info.map_size[1], self.game_info.map_size[0], 3), np.uint8)
@@ -257,13 +273,14 @@ class ChaBotDL(ChaBot1):
         vespene_ratio = self.vespene / 1500
         if vespene_ratio > 1:
             vespene_ratio = 1
-        population_ratio = self.supply_left / self.supply_cap
+        population_ratio = self.supply_left / (self.supply_cap + 1)
         if population_ratio > 1:
             population_ratio = 1
         plausible_supply = self.supply_cap / 200.0
 
-        military_weight = (len(self.units(self.FIRST_ATTACK_UNIT)) + len(self.units(self.SECOND_ATTACK_UNIT))) \
-                            / (self.supply_cap - self.supply_left)
+        supply_used = self.supply_cap - self.supply_left + 1
+        military_weight = (self.units(self.FIRST_ATTACK_UNIT).amount + self.units(self.SECOND_ATTACK_UNIT).amount) \
+                            / supply_used
         if military_weight > 1:
             military_weight = 1
 
@@ -275,45 +292,69 @@ class ChaBotDL(ChaBot1):
 
         self.flipped = cv2.flip(game_data, 0)
         resized = cv2.resize(self.flipped, dsize=None, fx=2, fy=2)
-        cv2.imshow("SC2AI", resized)
+        cv2.imshow(str(self.player_id), resized)
         cv2.waitKey(1)
 
 
     async def attack(self, **karg):
         if self.units(VOIDRAY).amount + self.units(STALKER).amount > 0:
-            choice = random.randrange(0, 4)
+            choice = random.randrange(0, 6)
             target = None
+            action = ''
             if self.iteration > self.do_something_ater:
                 if choice == 0:
-                    print("Wait!")
-                    wait = random.randrange(self.BASIC_REACTION, 165)
+                    action = "Wait!"
+                    wait = random.randrange(0, 100)
                     self.do_something_ater = self.iteration + wait
                 elif choice == 1:
-                    print("Defend!")
                     if self.known_enemy_units.amount > 0:
-                        target = self.known_enemy_units.closest_to(random.choice(self.units(NEXUS)))
-                    self.do_something_ater = self.iteration + self.BASIC_REACTION
+                        action = "Defend!"
+                        target = self.known_enemy_units.closest_to(self.units(NEXUS).random)
                 elif choice == 2:
-                    print("Attack!")
                     if self.known_enemy_structures.amount > 0:
-                        target = random.choice(self.known_enemy_structures)
-                    self.do_something_ater = self.iteration + self.BASIC_REACTION
+                        action = "Attack!"
+                        target = self.known_enemy_structures.random
                 elif choice == 3:
-                    print("Finally Attack!")
+                    action = "Finally Attack!"
                     target = self.enemy_start_locations[0]
-                    self.do_something_ater = self.iteration + self.BASIC_REACTION
+                elif choice == 4:
+                    if self.units(OBSERVER).idle.exists:
+                        action = "Scout enemy base!"
+                        scout = self.units(OBSERVER).idle.random
+                        destination = self.enemy_start_locations[0]
+                        go_to = self.random_location_variance(destination)
+                        await self.do(scout.move(go_to))
+                    else:
+                        return
+                elif choice == 5:
+                    if self.units(OBSERVER).idle.exists:
+                        action = "Scout elsewhere!"
+                        scout = self.units(OBSERVER).idle.random
+                        for _ in range(len(self.expansion_locations)):
+                            destination = random.choice(list(self.expansion_locations.keys()))
+                            if destination not in list(self.owned_expansions.keys()):
+                                break
+                        go_to = self.random_location_variance(destination)
+                        await self.do(scout.move(go_to))
+                    else:
+                        return
 
+                # print("Player {0} {1}".format(self.player_id, action))
+                reaction = random.randrange(self.BASIC_REACTION[0], self.BASIC_REACTION[1]+1)
+                self.do_something_ater = self.iteration + reaction
                 if target:
                     for vr in self.units(VOIDRAY).idle:
                         await self.do(vr.attack(target))
                     for sk in self.units(STALKER).idle:
                         await self.do(sk.attack(target))
 
-                y = np.zeros(4)
+                y = np.zeros(6)
                 y[choice] = 1
                 # print(y)
                 self.train_data.append([y, self.flipped])
 
+
+# --------------------------------------------------------------------------------------------------------------------
 # Sentdex's Tutorial Bot
 class SentdeBot(BotAI):
     def __init__(self):
@@ -345,10 +386,8 @@ class SentdeBot(BotAI):
     def random_location_variance(self, enemy_start_location):
         x = enemy_start_location[0]
         y = enemy_start_location[1]
-
         x += ((random.randrange(-20, 20))/100) * enemy_start_location[0]
         y += ((random.randrange(-20, 20))/100) * enemy_start_location[1]
-
         if x < 0:
             x = 0
         if y < 0:
