@@ -288,7 +288,7 @@ class ChaBotDL(ChaBot1):
             [vespene_ratio, ((0, 7), (210, 200, 0))],
             [mineral_ratio, ((0, 3), (0, 255, 25))],
             ]:
-            cv2.line(game_data, line[1][0], (int(line_max * line[0]), 19), line[1][1], 3)
+            cv2.line(game_data, line[1][0], (int(line_max * line[0]), line[1][0][1]), line[1][1], 3)
         # finally show the visualization
         self.flipped = cv2.flip(game_data, 0)
         resized = cv2.resize(self.flipped, dsize=None, fx=2, fy=2)
